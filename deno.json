@@ -5,6 +5,11 @@
     "demo": "deno run -A ./demo/demo.ts"
   },
   "exports": "./mod.ts",
+  "exclude": [
+    "demo",
+    "test",
+    "demo-distance"
+  ],
   "imports": {
     "@std/cli": "jsr:@std/cli@^0.221.0",
     "@std/fs": "jsr:@std/fs@^0.221.0",

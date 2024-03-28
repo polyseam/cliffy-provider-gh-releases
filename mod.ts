@@ -162,7 +162,7 @@ export class GithubReleaseProvider extends Provider {
     return `https://github.com/${this.owner}/${this.repo}/releases/tag/${version}`;
   }
 
-  getDownloadUrl(version: string, os: AvailableOS) {
+  getDownloadUrl(version: string, os: AvailableOS): URL {
     if (!this.osAssetMap[os]) {
       const error = new GHRError("No asset found for the current OS", 3, {
         os,
