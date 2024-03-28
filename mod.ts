@@ -1,6 +1,7 @@
 import {
   colors,
   ensureDirSync,
+  homedir,
   inflateResponse,
   Octokit,
   Provider,
@@ -102,7 +103,8 @@ export class GithubReleaseProvider extends Provider {
 
     this.owner = owner;
     this.repo = repo;
-    this.destinationDir = options.destinationDir;
+    this.destinationDir = options.destinationDir.replace("~", homedir());
+
     ensureDirSync(this.destinationDir);
     this.osAssetMap = options.osAssetMap;
 

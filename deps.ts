@@ -6,7 +6,7 @@ export type {
   UpgradeOptions,
 } from "https://deno.land/x/cliffy@v1.0.0-rc.3/command/upgrade/mod.ts";
 export { colors } from "https://deno.land/x/cliffy@v1.0.0-rc.3/ansi/colors.ts";
-
+export { homedir } from "node:os";
 // std
 export { Spinner } from "@std/cli/spinner";
 export { type SpinnerOptions } from "@std/cli/spinner";
