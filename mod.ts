@@ -7,6 +7,7 @@ import {
   Provider,
   semver,
   Spinner,
+  UpgradeCommand,
   walkSync,
 } from "./deps.ts";
 
@@ -45,14 +46,24 @@ export class GHRError extends Error {
   }
 }
 
-interface GithubReleaseProviderOptions extends GithubProviderOptions {
+type OnCompleteMetadata = {
+  to: string;
+  from?: string;
+};
+
+type OnCompleteFinalCallback = () => void;
+
+interface GithubReleasesProviderOptions extends GithubProviderOptions {
   destinationDir: string;
   displaySpinner?: boolean;
   prerelease?: boolean;
   untar?: boolean;
   cleanupOld?: boolean;
   osAssetMap: OSAssetMap;
-  onComplete?: (version: string) => void | never;
+  onComplete?: (
+    metadata: OnCompleteMetadata,
+    cb: OnCompleteFinalCallback,
+  ) => void | never;
   onError?: (error: GHRError) => void | never;
 }
 
@@ -72,7 +83,7 @@ function latestSemVerFirst(a: string, b: string): number {
   }
 }
 
-export class GithubReleaseProvider extends Provider {
+export class GithubReleasesProvider extends Provider {
   name: string = "GithubReleaseProvider";
   displaySpinner: boolean = true;
   prerelease: boolean = false;
@@ -82,11 +93,15 @@ export class GithubReleaseProvider extends Provider {
   repo: string;
   osAssetMap: OSAssetMap;
   cleanupOld: boolean = true;
-  onComplete?: (version: string) => void | never;
+  onComplete?: (
+    metadata: OnCompleteMetadata,
+    cb: OnCompleteFinalCallback,
+  ) => void | never;
   onError?: (error: GHRError) => void | never;
 
-  constructor(options: GithubReleaseProviderOptions) {
+  constructor(options: GithubReleasesProviderOptions) {
     super();
+
     const [owner, repo] = options.repository.split("/");
 
     if (!owner || !repo) {
@@ -127,7 +142,8 @@ export class GithubReleaseProvider extends Provider {
       // however it's the only way to ensure that the cleanup happens
       this.cleanOldVersions();
     }
-    this.onComplete = options?.onComplete || ((_version: string) => {});
+    this.onComplete = options?.onComplete ||
+      ((_meta: OnCompleteMetadata, _cb: OnCompleteFinalCallback) => {});
     this.onError = options?.onError || ((_error: Error) => {});
   }
 
@@ -155,7 +171,7 @@ export class GithubReleaseProvider extends Provider {
   }
 
   getRepositoryUrl(_name: string): string {
-    return `https://github.com/${this.owner}/${this.repo}`;
+    return `https://github.com/${this.owner}/${this.repo}/releases`;
   }
 
   getRegistryUrl(_name: string, version: string): string {
@@ -178,7 +194,9 @@ export class GithubReleaseProvider extends Provider {
   }
 
   // Add your custom code here
-  async upgrade({ name, from, to }: UpgradeOptions): Promise<void> {
+  async upgrade(options: UpgradeOptions): Promise<void> {
+    let { name, from, to } = options;
+
     const spinner = new Spinner({
       message: `Upgrading ${colors.cyan(name)} from ${
         colors.yellow(
@@ -279,19 +297,17 @@ export class GithubReleaseProvider extends Provider {
         }
       }
 
-      if (this.displaySpinner) {
+      this?.onComplete?.({ to, from }, function printSuccessMessage() {
         spinner.stop();
-        console.log();
         const fromMsg = from ? ` from version ${colors.yellow(from)}` : "";
         console.log(
           `Successfully upgraded ${
             colors.cyan(
               name,
             )
-          }${fromMsg} to version ${colors.green(to)}!\n\n`,
+          }${fromMsg} to version ${colors.green(to)}!\n`,
         );
-        this?.onComplete?.(to);
-      }
+      });
     } else {
       if (response.status === 404) {
         const error = new GHRError("GitHub Release Asset Not Found", 1404, {
@@ -420,5 +436,24 @@ export class GithubReleaseProvider extends Provider {
   ): Promise<void> {
     const { versions } = await this.getVersions(name);
     super.printVersions(versions, currentVersion, { indent: 0 });
+  }
+}
+
+interface GithubReleasesUpgradeOptions {
+  provider: GithubReleasesProvider;
+}
+
+export class GithubReleasesUpgradeCommand extends UpgradeCommand {
+  constructor(options: GithubReleasesUpgradeOptions) {
+    super(options);
+
+    this.option(
+      "--pre-release, --prerelease",
+      "Include GitHub Releases marked pre-release",
+      () => {
+        // this is strange, but seems to work
+        options.provider.prerelease = true;
+      },
+    );
   }
 }
