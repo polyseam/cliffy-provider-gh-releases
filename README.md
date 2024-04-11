@@ -27,13 +27,14 @@ are handled:
   is passed the version string of the release that was installed
 
 ```typescript
-import { UpgradeCommand } from "https://deno.land/x/cliffy@v1.0.0-rc.3/command/upgrade/mod.ts";
 import {
   GHRError,
   GithubReleaseProvider,
-} from "https://deno.land/x/cliffy-provider-github-releases/mod.ts";
+  GithubReleasesUpgradeCommand,
+} from "jsr:@polyseam/cliffy-provider-github-releases";
 
-const upgradeCommand = new UpgradeCommand({
+// This UpgradeCommand can be used in place of the default Cliffy UpgradeCommand
+const upgradeCommand = new GithubReleaseUpgradeCommand({
   provider: new GithubReleaseProvider({
     repository: "polyseam/cndi",
     destinationDir: "~/.cndi/bin",
@@ -43,7 +44,6 @@ const upgradeCommand = new UpgradeCommand({
       darwin: "cndi-mac.tar.gz",
     },
     onError: (error: GHRError) => {
-      printError(error);
       const exit_code = parseInt(`8${error.code}`);
       Deno.exit(exit_code);
     },

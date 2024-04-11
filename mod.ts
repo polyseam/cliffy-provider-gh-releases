@@ -36,6 +36,13 @@ const _ERROR_CODE_MAP = {
   2403: "GitHub Release List Request Forbidden",
 };
 
+/**
+ * GHRError
+ * A simple Error object which includes a code and optional metadata
+ * @param message - A human-readable error message
+ * @param code - A numeric error code
+ * @param metadata - An optional object containing additional error information
+ */
 export class GHRError extends Error {
   code: number;
   metadata: Record<string, unknown>;
@@ -83,6 +90,16 @@ function latestSemVerFirst(a: string, b: string): number {
   }
 }
 
+/**
+ * GithubReleasesProvider
+ * A Cliffy UpgradeProvider for GitHub Releases
+ * @param options - An object containing the following properties:
+ * - repository: A string in the format 'owner/repo'
+ * - destinationDir: A string representing the directory where the release will be installed
+ * - osAssetMap: An object mapping OS names to corresponding assets in GitHub Releases
+ * - onError: An optional callback function to handle errors
+ * - onComplete: An optional callback function to handle completion
+ */
 export class GithubReleasesProvider extends Provider {
   name: string = "GithubReleaseProvider";
   displaySpinner: boolean = true;
@@ -443,6 +460,12 @@ interface GithubReleasesUpgradeOptions {
   provider: GithubReleasesProvider;
 }
 
+/**
+ * GithubReleasesUpgradeCommand
+ * A Cliffy UpgradeCommand for upgrading software using GitHub Releases
+ * @param options - An object containing the following properties:
+ * - provider: A GithubReleasesProvider instance
+ */
 export class GithubReleasesUpgradeCommand extends UpgradeCommand {
   constructor(options: GithubReleasesUpgradeOptions) {
     super(options);
