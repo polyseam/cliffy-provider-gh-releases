@@ -7,7 +7,8 @@ import {
 import { colors } from "@cliffy/ansi";
 import { Command } from "@cliffy/command";
 
-const destinationDir = join(Deno.cwd(), "demo-dist", "bin");
+// Deno.cwd() is the parent directory of the demo directory
+const destinationDir = join(Deno.cwd(), "demo", "demo-dist", "bin");
 
 function printError(error: GHRError) {
   console.log("\n");
@@ -35,7 +36,8 @@ const upgradeCommand = new GithubReleasesUpgradeCommand({
       const exit_code = parseInt(`8${error.code}`);
       Deno.exit(exit_code);
     },
-    onComplete: (_version) => {
+    onComplete: () => {
+      console.log("\ninstalled!");
       Deno.exit(0);
     },
   }),
@@ -46,7 +48,7 @@ const cli = new Command()
   .version("0.1.0")
   .command(
     "hello",
-    new Command().action(() => console.log("Hello World!")),
+    new Command().action(() => console.log("Hello World!"))
   )
   .command("upgrade", upgradeCommand);
 
