@@ -1,8 +1,13 @@
-import { Command, path, UpgradeCommand } from "./dev-deps.ts";
-import { colors } from "../deps.ts";
-import { GHRError, GithubReleaseProvider } from "../mod.ts";
+import { join } from "@std/path";
+import {
+  GHRError,
+  GithubReleasesProvider,
+  GithubReleasesUpgradeCommand,
+} from "@polyseam/cliffy-provider-gh-releases";
+import { colors } from "@cliffy/ansi";
+import { Command } from "@cliffy/command";
 
-const destinationDir = path.join(Deno.cwd(), "demo-dist", "bin");
+const destinationDir = join(Deno.cwd(), "demo-dist", "bin");
 
 function printError(error: GHRError) {
   console.log("\n");
@@ -16,8 +21,8 @@ function printError(error: GHRError) {
   console.log("\n");
 }
 
-const upgradeCommand = new UpgradeCommand({
-  provider: new GithubReleaseProvider({
+const upgradeCommand = new GithubReleasesUpgradeCommand({
+  provider: new GithubReleasesProvider({
     repository: "polyseam/cndi",
     destinationDir,
     osAssetMap: {

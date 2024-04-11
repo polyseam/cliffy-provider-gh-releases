@@ -5,7 +5,9 @@ a CLI tool via GitHub releases.
 
 ## usage
 
-_for a complete example, see the [demo](./demo) directory_
+_for a complete example, see the
+[demo](https://github.com/polyseam/cliffy-provider-gh-releases/tree/main/demo)
+directory_
 
 The following snippet instantiates an `UpgradeCommand`, it is configured by
 passing an instance of `GithubReleaseProvider` to it.
