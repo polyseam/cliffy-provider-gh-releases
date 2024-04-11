@@ -1,7 +1,8 @@
 # cliffy-provider-github-releases
 
 This is a provider for [cliffy](https://cliffy.io) which enables the updating of
-a CLI tool via GitHub releases.
+a CLI tool via
+[GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github).
 
 ## usage
 
@@ -9,10 +10,10 @@ _for a complete example, see the
 [demo](https://github.com/polyseam/cliffy-provider-gh-releases/tree/main/demo)
 directory_
 
-The following snippet instantiates an `UpgradeCommand`, it is configured by
-passing an instance of `GithubReleaseProvider` to it.
+The following snippet instantiates an `GithubReleasesUpgradeCommand`, it is
+configured by passing an instance of `GithubReleasesProvider` to it.
 
-The `GithubReleaseProvider` takes:
+The `GithubReleasesProvider` takes:
 
 - `repository` a string in the format `owner/repo` which points to the
   repository to fetch releases from.
@@ -31,13 +32,13 @@ are handled:
 ```typescript
 import {
   GHRError,
-  GithubReleaseProvider,
+  GithubReleasesProvider,
   GithubReleasesUpgradeCommand,
 } from "jsr:@polyseam/cliffy-provider-github-releases";
 
 // This UpgradeCommand can be used in place of the default Cliffy UpgradeCommand
-const upgradeCommand = new GithubReleaseUpgradeCommand({
-  provider: new GithubReleaseProvider({
+const upgradeCommand = new GithubReleasesUpgradeCommand({
+  provider: new GithubReleasesProvider({
     repository: "polyseam/cndi",
     destinationDir: "~/.cndi/bin",
     osAssetMap: {
@@ -49,7 +50,7 @@ const upgradeCommand = new GithubReleaseUpgradeCommand({
       const exit_code = parseInt(`8${error.code}`);
       Deno.exit(exit_code);
     },
-    onComplete: (_version) => {
+    onComplete: (_info) => {
       Deno.exit(0);
     },
   }),
