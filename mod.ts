@@ -69,7 +69,7 @@ interface GithubReleasesProviderOptions extends GithubProviderOptions {
   osAssetMap: OSAssetMap;
   onComplete?: (
     metadata: OnCompleteMetadata,
-    cb: OnCompleteFinalCallback,
+    cb: OnCompleteFinalCallback
   ) => void | never;
   onError?: (error: GHRError) => void | never;
 }
@@ -112,7 +112,7 @@ export class GithubReleasesProvider extends Provider {
   cleanupOld: boolean = true;
   onComplete?: (
     metadata: OnCompleteMetadata,
-    cb: OnCompleteFinalCallback,
+    cb: OnCompleteFinalCallback
   ) => void | never;
   onError?: (error: GHRError) => void | never;
 
@@ -127,7 +127,7 @@ export class GithubReleasesProvider extends Provider {
         1,
         {
           repository: options.repository,
-        },
+        }
       );
       this.onError?.(error);
       throw error;
@@ -148,7 +148,9 @@ export class GithubReleasesProvider extends Provider {
       this.prerelease = true;
     }
 
-    this.octokit = new Octokit({});
+    const auth = Deno.env.get("GITHUB_TOKEN");
+
+    this.octokit = new Octokit({ auth });
 
     if (options.cleanupOld === false) {
       this.cleanupOld = false;
@@ -159,7 +161,8 @@ export class GithubReleasesProvider extends Provider {
       // however it's the only way to ensure that the cleanup happens
       this.cleanOldVersions();
     }
-    this.onComplete = options?.onComplete ||
+    this.onComplete =
+      options?.onComplete ||
       ((_meta: OnCompleteMetadata, _cb: OnCompleteFinalCallback) => {});
     this.onError = options?.onError || ((_error: Error) => {});
   }
@@ -177,7 +180,7 @@ export class GithubReleasesProvider extends Provider {
               {
                 oldfile: entry.path,
                 caught,
-              },
+              }
             );
             this.onError?.(foundButFailedToDelete);
             throw foundButFailedToDelete;
@@ -195,19 +198,56 @@ export class GithubReleasesProvider extends Provider {
     return `https://github.com/${this.owner}/${this.repo}/releases/tag/${version}`;
   }
 
-  getDownloadUrl(version: string, os: AvailableOS): URL {
-    if (!this.osAssetMap[os]) {
-      const error = new GHRError("No asset found for the current OS", 3, {
-        os,
-        osAssetMap: JSON.stringify(this.osAssetMap, null, 2),
+  getReleaseOctokitRequest(
+    version: string
+    // os: AvailableOS
+  ): { path: string; opt: { owner: string; repo: string; tag: string } } {
+    // if (!this.osAssetMap[os]) {
+    //   const error = new GHRError("No asset found for the current OS", 3, {
+    //     os,
+    //     osAssetMap: JSON.stringify(this.osAssetMap, null, 2),
+    //   });
+    //   this.onError?.(error);
+    //   throw error;
+    // }
+    // const assetName = this.osAssetMap[os];
+
+
+    return {
+      path: `GET /repos/{owner}/{repo}/releases/tags/{tag}`,
+      opt: {
+        owner: this.owner,
+        repo: this.repo,
+        tag: version,
+      },
+    };
+  }
+  getDownloadUrl(releaseResponse: any): URL {
+
+    console.log('releaseResponse', releaseResponse)
+
+    if (releaseResponse.status !== 200) {
+      throw new GHRError("Failed to fetch release metadata", 4, {
+        status: releaseResponse.status,
+        url: releaseResponse.url,
       });
-      this.onError?.(error);
-      throw error;
+    } else {
+      const assetName = this.osAssetMap[Deno.build.os];
+      const asset = releaseResponse.data.assets.find(
+        (asset: {name: string}) => asset.name === assetName
+      );
+      if (!asset) {
+        throw new GHRError("Failed to find asset for current OS", 3, {
+          os: Deno.build.os,
+          assetName,
+          assets: releaseResponse.data.assets,
+        });
+      }
+      const assetId = asset.id;
+      const assetUrl = `https://api.github.com/repos/${this.owner}/${this.repo}/releases/assets/${assetId}`;
+
+      return new URL(assetUrl);
     }
-    const assetName = this.osAssetMap[os];
-    return new URL(
-      `https://github.com/${this.owner}/${this.repo}/releases/download/${version}/${assetName}`,
-    );
   }
 
   // Add your custom code here
@@ -215,11 +255,9 @@ export class GithubReleasesProvider extends Provider {
     let { name, from, to } = options;
 
     const spinner = new Spinner({
-      message: `Upgrading ${colors.cyan(name)} from ${
-        colors.yellow(
-          from || "?",
-        )
-      } to version ${colors.cyan(to)}...`,
+      message: `Upgrading ${colors.cyan(name)} from ${colors.yellow(
+        from || "?"
+      )} to version ${colors.cyan(to)}...`,
       color: "cyan",
       spinner: [
         "▰▱▱▱▱▱▱",
@@ -244,14 +282,28 @@ export class GithubReleasesProvider extends Provider {
       to = versions.latest;
     }
 
+    const req = this.getReleaseOctokitRequest(to);
+
+    const releaseResponse = await this.octokit.request(req.path, req.opt);
+    const downloadUrl = this.getDownloadUrl(releaseResponse);
+    
+
     const os = Deno.build.os;
 
-    const downloadUrl = this.getDownloadUrl(to, os);
+    // const downloadUrl = this.getReleaseDownloadUrl(to, os);
     const stagingDir = Deno.makeTempDirSync();
+
     let response: Response;
 
+    const headers = new Headers({
+      Authorization: `token ${Deno.env.get("GITHUB_TOKEN")}`,
+      Accept: "application/octet-stream",
+    });
+
     try {
-      response = await fetch(downloadUrl);
+      response = await fetch(downloadUrl, {
+        headers,
+      });
     } catch (errorFetching) {
       const error = new GHRError(
         "Network Error: Failed to fetch GitHub Release Asset",
@@ -259,7 +311,7 @@ export class GithubReleasesProvider extends Provider {
         {
           caught: errorFetching,
           url: downloadUrl,
-        },
+        }
       );
       this.onError?.(error);
       throw error;
@@ -318,11 +370,9 @@ export class GithubReleasesProvider extends Provider {
         spinner.stop();
         const fromMsg = from ? ` from version ${colors.yellow(from)}` : "";
         console.log(
-          `Successfully upgraded ${
-            colors.cyan(
-              name,
-            )
-          }${fromMsg} to version ${colors.green(to)}!\n`,
+          `Successfully upgraded ${colors.cyan(
+            name
+          )}${fromMsg} to version ${colors.green(to)}!\n`
         );
       });
     } else {
@@ -342,7 +392,7 @@ export class GithubReleasesProvider extends Provider {
           {
             url: downloadUrl,
             status: response.status,
-          },
+          }
         );
         this.onError?.(error);
         throw error;
@@ -354,7 +404,7 @@ export class GithubReleasesProvider extends Provider {
         {
           url: downloadUrl,
           status: response.status,
-        },
+        }
       );
 
       this.onError?.(error);
@@ -363,8 +413,7 @@ export class GithubReleasesProvider extends Provider {
   }
 
   async getVersions(_name: string): Promise<GithubReleaseVersions> {
-    const url =
-      `https://api.github.com/repos/${this.owner}/${this.repo}/releases`;
+    const url = `https://api.github.com/repos/${this.owner}/${this.repo}/releases`;
     try {
       const listReleasesResponse = await this.octokit.request(
         "GET /repos/{owner}/{repo}/releases",
@@ -374,7 +423,7 @@ export class GithubReleasesProvider extends Provider {
           headers: {
             "X-GitHub-Api-Version": "2022-11-28",
           },
-        },
+        }
       );
 
       if (listReleasesResponse.status === 200) {
@@ -416,7 +465,7 @@ export class GithubReleasesProvider extends Provider {
             {
               url,
               status: listReleasesResponse.status,
-            },
+            }
           );
           this.onError?.(error);
           throw error;
@@ -428,7 +477,7 @@ export class GithubReleasesProvider extends Provider {
           {
             status: listReleasesResponse.status,
             url,
-          },
+          }
         );
         this.onError?.(error);
         throw error;
@@ -440,7 +489,7 @@ export class GithubReleasesProvider extends Provider {
         {
           caught: error,
           url,
-        },
+        }
       );
       this.onError?.(getVersionsNetworkError);
       throw getVersionsNetworkError;
@@ -449,7 +498,7 @@ export class GithubReleasesProvider extends Provider {
 
   async listVersions(
     name: string,
-    currentVersion?: string | undefined,
+    currentVersion?: string | undefined
   ): Promise<void> {
     const { versions } = await this.getVersions(name);
     super.printVersions(versions, currentVersion, { indent: 0 });
@@ -476,7 +525,7 @@ export class GithubReleasesUpgradeCommand extends UpgradeCommand {
       () => {
         // this is strange, but seems to work
         options.provider.prerelease = true;
-      },
+      }
     );
   }
 }

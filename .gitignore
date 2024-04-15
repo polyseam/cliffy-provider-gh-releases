@@ -1,2 +1,3 @@
 demo-dist/
 !demo-dist/.keep
+.env

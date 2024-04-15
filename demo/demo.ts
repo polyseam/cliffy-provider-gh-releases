@@ -3,7 +3,7 @@ import {
   GHRError,
   GithubReleasesProvider,
   GithubReleasesUpgradeCommand,
-} from "@polyseam/cliffy-provider-gh-releases";
+} from "../mod.ts";
 import { colors } from "@cliffy/ansi";
 import { Command } from "@cliffy/command";
 
@@ -24,12 +24,10 @@ function printError(error: GHRError) {
 
 const upgradeCommand = new GithubReleasesUpgradeCommand({
   provider: new GithubReleasesProvider({
-    repository: "polyseam/cndi",
+    repository: "polyseam/private-release",
     destinationDir,
     osAssetMap: {
-      windows: "cndi-win.tar.gz",
-      linux: "cndi-linux.tar.gz",
-      darwin: "cndi-mac.tar.gz",
+      darwin: "hello-worlds-mac.tar.gz",
     },
     onError: (error: GHRError) => {
       printError(error);
@@ -48,7 +46,7 @@ const cli = new Command()
   .version("0.1.0")
   .command(
     "hello",
-    new Command().action(() => console.log("Hello World!"))
+    new Command().action(() => console.log("Hello World!")),
   )
   .command("upgrade", upgradeCommand);
 
