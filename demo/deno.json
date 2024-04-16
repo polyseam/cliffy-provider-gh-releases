@@ -1,13 +1,22 @@
 {
-  "name": "gh-upgrade-demo",
+  "name": "@cliffy-provider-gh-releases/demo",
   "tasks": {
-    "dev": "deno run --watch main.ts"
+    "dev": "deno run --watch main.ts",
+    "run": "export $(xargs < .env) && deno run -A demo.ts",
+    "tar-win": "tar -czvf dist/release-archives/demo-win.tar.gz -C dist/win/in .",
+    "tar-linux": "tar -czvf dist/release-archives/demo-linux.tar.gz -C dist/linux/in .",
+    "tar-mac": "tar -czvf dist/release-archives/demo-mac.tar.gz -C dist/mac/in .",
+    "tar-all": "deno task tar-mac && deno task tar-win && deno task tar-linux",
+    "clean-dist": "rm -rf dist && mkdir -p dist/win/in && mkdir -p dist/linux/in && mkdir -p dist/mac/in && mkdir -p dist/release-archives",
+    "compile-win": "deno compile --allow-all --target x86_64-pc-windows-msvc --output dist/win/in/demo.exe demo.ts",
+    "compile-linux": "deno compile --allow-all --target x86_64-unknown-linux-gnu --output dist/linux/in/demo demo.ts",
+    "compile-mac": "deno compile --allow-all --target x86_64-apple-darwin --output dist/mac/in/demo demo.ts",
+    "compile-all": "deno task compile-win && deno task compile-linux && deno task compile-mac",
+    "build": "deno lint && deno fmt && deno task clean-dist && deno task compile-all && deno task tar-all",
+    "build-mac": "deno lint && deno fmt && deno task clean-dist && deno task compile-mac",
+    "build-linux": "deno lint && deno fmt && deno task clean-dist && deno task compile-linux",
+    "build-win": "deno lint && deno fmt && deno task clean-dist && deno task compile-win"
   },
   "exports": "./demo.ts",
-  "imports": {
-    "@cliffy/ansi": "jsr:@cliffy/ansi@^1.0.0-rc.4",
-    "@cliffy/command": "jsr:@cliffy/command@^1.0.0-rc.4",
-    "@std/path": "jsr:@std/path@^0.221.0",
-    "@polyseam/cliffy-provider-gh-releases": "jsr:@polyseam/cliffy-provider-gh-releases@^0.1.1"
-  }
+  "importMap": "../import_map.json"
 }

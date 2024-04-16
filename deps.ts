@@ -5,9 +5,11 @@ export type {
   GithubVersions,
   UpgradeOptions,
 } from "@cliffy/command/upgrade";
-
 export { colors } from "@cliffy/ansi";
+
+// node builtins
 export { homedir } from "node:os";
+
 // std
 export { Spinner } from "@std/cli/spinner";
 export { type SpinnerOptions } from "@std/cli/spinner";
@@ -21,6 +23,7 @@ export { ensureDirSync, walkSync } from "@std/fs";
 
 // github
 export { Octokit } from "octokit";
+export type { Endpoints as OctokitEndpoints } from "@octokit/types";
 
 // homegrown
 export { inflateResponse } from "@polyseam/inflate-response";

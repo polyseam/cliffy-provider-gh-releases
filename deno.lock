@@ -25,6 +25,7 @@
       "jsr:@std/path@^0.221.0": "jsr:@std/path@0.221.0",
       "jsr:@std/semver@^0.221.0": "jsr:@std/semver@0.221.0",
       "jsr:@std/text@0.221": "jsr:@std/text@0.221.0",
+      "npm:@octokit/types@^13.4.1": "npm:@octokit/types@13.4.1",
       "npm:@types/node": "npm:@types/node@18.16.19",
       "npm:octokit@^3.1.2": "npm:octokit@3.1.2_@octokit+core@5.1.0",
       "npm:semver": "npm:semver@7.5.4",
@@ -259,6 +260,10 @@
         "integrity": "sha512-EtqRBEjp1dL/15V7WiX5LJMIxxkdiGJnabzYx5Apx4FkQIFgAfKumXeYAqqJCj1s+BMX4cPFIFC4OLCR6stlnA==",
         "dependencies": {}
       },
+      "@octokit/openapi-types@22.1.0": {
+        "integrity": "sha512-pGUdSP+eEPfZiQHNkZI0U01HLipxncisdJQB4G//OAmfeO8sqTQ9KRa0KF03TUPCziNsoXUrTg4B2Q1EX++T0Q==",
+        "dependencies": {}
+      },
       "@octokit/plugin-paginate-graphql@4.0.1_@octokit+core@5.1.0": {
         "integrity": "sha512-R8ZQNmrIKKpHWC6V2gum4x9LG2qF1RxRjo27gjQcG3j+vf2tLsEfE7I/wRWEPzYMaenr1M+qDAtNcwZve1ce1A==",
         "dependencies": {
@@ -317,6 +322,12 @@
         "integrity": "sha512-1rhSOfRa6H9w4YwK0yrf5faDaDTb+yLyBUKOCV4xtCDB5VmIPqd/v9yr9o6SAzOAlRxMiRiCic6JVM1/kunVkw==",
         "dependencies": {
           "@octokit/openapi-types": "@octokit/openapi-types@20.0.0"
+        }
+      },
+      "@octokit/types@13.4.1": {
+        "integrity": "sha512-Y73oOAzRBAUzR/iRAbGULzpNkX8vaxKCqEtg6K74Ff3w9f5apFnWtE/2nade7dMWWW3bS5Kkd6DJS4HF04xreg==",
+        "dependencies": {
+          "@octokit/openapi-types": "@octokit/openapi-types@22.1.0"
         }
       },
       "@octokit/webhooks-methods@4.1.0": {
@@ -818,6 +829,7 @@
       "jsr:@std/cli@^0.221.0",
       "jsr:@std/fs@^0.221.0",
       "jsr:@std/semver@^0.221.0",
+      "npm:@octokit/types@^13.4.1",
       "npm:octokit@^3.1.2"
     ]
   }

@@ -1,18 +1,18 @@
-import { join } from "@std/path";
+import { join } from "jsr:@std/path@0.222.1";
+import { colors } from "jsr:@cliffy/ansi@1.0.0-rc.4";
+import { Command } from "jsr:@cliffy/command@1.0.0-rc.4";
 import {
   GHRError,
   GithubReleasesProvider,
   GithubReleasesUpgradeCommand,
-} from "@polyseam/cliffy-provider-gh-releases";
-import { colors } from "@cliffy/ansi";
-import { Command } from "@cliffy/command";
+} from "../mod.ts";
 
-// Deno.cwd() is the parent directory of the demo directory
-const destinationDir = join(Deno.cwd(), "demo", "demo-dist", "bin");
+const destinationDir = join(Deno.cwd(), "dist");
 
 function printError(error: GHRError) {
   console.log("\n");
   console.error("error:", colors.brightRed(error.message));
+  console.error("code:", colors.brightRed(`${error.code}`));
 
   if (error.metadata) {
     for (const key in error.metadata) {
@@ -24,12 +24,12 @@ function printError(error: GHRError) {
 
 const upgradeCommand = new GithubReleasesUpgradeCommand({
   provider: new GithubReleasesProvider({
-    repository: "polyseam/cndi",
+    repository: "polyseam/cliffy-provider-github-releases",
     destinationDir,
     osAssetMap: {
-      windows: "cndi-win.tar.gz",
-      linux: "cndi-linux.tar.gz",
-      darwin: "cndi-mac.tar.gz",
+      darwin: "demo-mac.tar.gz",
+      linux: "demo-linux.tar.gz",
+      windows: "demo-windows.tar.gz",
     },
     onError: (error: GHRError) => {
       printError(error);
@@ -48,7 +48,7 @@ const cli = new Command()
   .version("0.1.0")
   .command(
     "hello",
-    new Command().action(() => console.log("Hello World!"))
+    new Command().action(() => console.log("Hello World!")),
   )
   .command("upgrade", upgradeCommand);
 
