@@ -24,7 +24,7 @@ jobs:
         id: get_version_from_ref
         run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_OUTPUT
 
-      - name: Compare Git Tag to CNDI Version
+      - name: Compare Git Tag to deno.json Version
         if: ${{ steps.get_deno_json.outputs.version != steps.get_version_from_ref.outputs.VERSION }}
         run: |
           echo "Deno.json Version: ${{ steps.get_deno_json.outputs.version }} does not match Tag version: ${{ steps.get_version_from_ref.outputs.VERSION }}" && exit 1
