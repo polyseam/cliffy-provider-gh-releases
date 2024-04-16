@@ -13,8 +13,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          path: demo
+        
+      - name: cd demo
+        run: cd demo
 
       - name: Deno
         uses: denoland/setup-deno@v1
