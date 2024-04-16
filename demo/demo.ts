@@ -1,14 +1,13 @@
-import { join } from "@std/path";
+import { join } from "jsr:@std/path@0.222.1";
+import { colors } from "jsr:@cliffy/ansi@1.0.0-rc.4";
+import { Command } from "jsr:@cliffy/command@1.0.0-rc.4";
 import {
   GHRError,
   GithubReleasesProvider,
   GithubReleasesUpgradeCommand,
 } from "../mod.ts";
-import { colors } from "@cliffy/ansi";
-import { Command } from "@cliffy/command";
 
-// Deno.cwd() is the parent directory of the demo directory
-const destinationDir = join(Deno.cwd(), "demo", "demo-dist", "bin");
+const destinationDir = join(Deno.cwd(), "dist");
 
 function printError(error: GHRError) {
   console.log("\n");
@@ -28,6 +27,8 @@ const upgradeCommand = new GithubReleasesUpgradeCommand({
     destinationDir,
     osAssetMap: {
       darwin: "hello-worlds-mac.tar.gz",
+      linux: "hello-worlds-linux.tar.gz",
+      windows: "hello-worlds-windows.zip",
     },
     onError: (error: GHRError) => {
       printError(error);
