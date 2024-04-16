@@ -1,14 +1,13 @@
 {
   "name": "@polyseam/cliffy-provider-gh-releases",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "tasks": {
     "demo": "deno run -A ./demo/demo.ts"
   },
   "exports": "./mod.ts",
   "exclude": [
     "demo",
-    "test",
-    "demo-distance"
+    "test"
   ],
   "imports": {
     "@cliffy/ansi": "jsr:@cliffy/ansi@^1.0.0-rc.4",

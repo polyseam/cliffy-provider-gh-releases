@@ -12,6 +12,7 @@ const destinationDir = join(Deno.cwd(), "dist");
 function printError(error: GHRError) {
   console.log("\n");
   console.error("error:", colors.brightRed(error.message));
+  console.error("code:", colors.brightRed(`${error.code}`));
 
   if (error.metadata) {
     for (const key in error.metadata) {
@@ -23,12 +24,12 @@ function printError(error: GHRError) {
 
 const upgradeCommand = new GithubReleasesUpgradeCommand({
   provider: new GithubReleasesProvider({
-    repository: "polyseam/private-release",
+    repository: "polyseam/cliffy-provider-github-releases",
     destinationDir,
     osAssetMap: {
-      darwin: "hello-worlds-mac.tar.gz",
-      linux: "hello-worlds-linux.tar.gz",
-      windows: "hello-worlds-windows.zip",
+      darwin: "demo-mac.tar.gz",
+      linux: "demo-linux.tar.gz",
+      windows: "demo-windows.tar.gz",
     },
     onError: (error: GHRError) => {
       printError(error);
