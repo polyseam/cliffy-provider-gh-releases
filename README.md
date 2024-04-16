@@ -7,8 +7,7 @@ a CLI tool via
 ## usage
 
 _for a complete example, see the
-[demo](https://github.com/polyseam/cliffy-ghr-demo)
-repo_
+[polyseam/cliffy-ghr-demo](https://github.com/polyseam/cliffy-ghr-demo) repo_
 
 The following snippet instantiates an `GithubReleasesUpgradeCommand`, it is
 configured by passing an instance of `GithubReleasesProvider` to it.
