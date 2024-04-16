@@ -1,0 +1,49 @@
+name: Build and Release for GitHub
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.42
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Get version from deno.json
+        uses: polyseam/get-version-key-from-json@v1.0.0
+        id: get_deno_json
+        with:
+          path-to-json: "./deno.json"
+
+      - name: Get the tag version without prefix
+        id: get_version_from_ref
+        run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_OUTPUT
+
+      - name: Compare Git Tag to Demo Version
+        if: ${{ steps.get_deno_json.outputs.version != steps.get_version_from_ref.outputs.VERSION }}
+        run: |
+          echo "Demo Version: ${{ steps.get_deno_json.outputs.version }} does not match Tag version: ${{ steps.get_version_from_ref.outputs.VERSION }}" && exit 1
+
+      - name: Test
+        run: deno task test
+
+      - name: Build
+        run: deno task build
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          generate_release_notes: true
+          files: |
+            dist/release-archives/demo-*
