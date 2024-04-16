@@ -1,5 +1,6 @@
 {
   "name": "@cliffy-provider-gh-releases/demo",
+  "version": "1.0.0",
   "tasks": {
     "dev": "deno run --watch main.ts",
     "run": "export $(xargs < .env) && deno run -A demo.ts",
