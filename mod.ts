@@ -26,9 +26,13 @@ type OSAssetMap = {
 type ReleaseResponse =
   OctokitEndpoints["GET /repos/{owner}/{repo}/releases/tags/{tag}"]["response"];
 type ReleaseParameters =
-  OctokitEndpoints["GET /repos/{owner}/{repo}/releases/tags/{tag}"]["parameters"];
+  OctokitEndpoints["GET /repos/{owner}/{repo}/releases/tags/{tag}"][
+    "parameters"
+  ];
 type AssetParameters =
-  OctokitEndpoints["GET /repos/{owner}/{repo}/releases/assets/{asset_id}"]["parameters"];
+  OctokitEndpoints["GET /repos/{owner}/{repo}/releases/assets/{asset_id}"][
+    "parameters"
+  ];
 
 /**
  * ERROR_CODE_MAP
@@ -45,14 +49,15 @@ export const ERROR_CODE_MAP = {
   5500: "Failed to fetch GitHub Release Asset - Internal Server Error",
   // 6xxx errors are for octokit.request(data) errors
   6404: "Failed to octokit.request GitHub Release Asset Data - Not Found",
-  6500: "Failed to octokit.request GitHub Release Asset Data - Internal Server Error",
+  6500:
+    "Failed to octokit.request GitHub Release Asset Data - Internal Server Error",
   // 7xxx errors are for octokit.request(release list) errors
   7404: "Failed to octokit.request Release List from GitHub - Not Found",
-  7500: "Failed to octokit.request Release List from GitHub - Internal Server Error",
+  7500:
+    "Failed to octokit.request Release List from GitHub - Internal Server Error",
   8: "Failed to extract archive", // inflateResponse failed
   9: "Failed to stash old version", // rename running bin failed
   10: "Failed to install new version", // write new bin failed
-
 };
 
 /**
@@ -89,7 +94,7 @@ interface GithubReleasesProviderOptions extends GithubProviderOptions {
   skipAuth?: boolean;
   onComplete?: (
     metadata: OnCompleteMetadata,
-    cb: OnCompleteFinalCallback
+    cb: OnCompleteFinalCallback,
   ) => void | never;
   onError?: (error: GHRError) => void | never;
 }
@@ -134,7 +139,7 @@ export class GithubReleasesProvider extends Provider {
   skipAuth: boolean = false;
   onComplete?: (
     metadata: OnCompleteMetadata,
-    cb: OnCompleteFinalCallback
+    cb: OnCompleteFinalCallback,
   ) => void | never;
   onError?: (error: GHRError) => void | never;
 
@@ -149,7 +154,7 @@ export class GithubReleasesProvider extends Provider {
         1,
         {
           repository: options.repository,
-        }
+        },
       );
       this.onError?.(error);
       throw error;
@@ -187,8 +192,7 @@ export class GithubReleasesProvider extends Provider {
       // however it's the only way to ensure that the cleanup happens
       this.cleanOldVersions();
     }
-    this.onComplete =
-      options?.onComplete ||
+    this.onComplete = options?.onComplete ||
       ((_meta: OnCompleteMetadata, _cb: OnCompleteFinalCallback) => {});
     this.onError = options?.onError || ((_error: Error) => {});
   }
@@ -206,7 +210,7 @@ export class GithubReleasesProvider extends Provider {
               {
                 oldfile: entry.path,
                 caught,
-              }
+              },
             );
             this.onError?.(foundButFailedToDelete);
             throw foundButFailedToDelete;
@@ -252,7 +256,7 @@ export class GithubReleasesProvider extends Provider {
     }
 
     const asset = releaseResponse.data.assets.find(
-      (asset: { name: string }) => asset.name === assetName
+      (asset: { name: string }) => asset.name === assetName,
     );
     if (!asset) {
       throw new GHRError("Failed to find asset for current OS", 4, {
@@ -264,7 +268,8 @@ export class GithubReleasesProvider extends Provider {
     const assetId = asset.id;
 
     // this url could be used with fetch() instead of octokit
-    const _assetUrl = `https://api.github.com/repos/${this.owner}/${this.repo}/releases/assets/${assetId}`;
+    const _assetUrl =
+      `https://api.github.com/repos/${this.owner}/${this.repo}/releases/assets/${assetId}`;
 
     return {
       path: `GET /repos/{owner}/{repo}/releases/assets/{asset_id}`,
@@ -277,9 +282,11 @@ export class GithubReleasesProvider extends Provider {
     let { name, from, to } = options;
     const os = Deno.build.os;
     const spinner = new Spinner({
-      message: `Upgrading ${colors.cyan(name)} from ${colors.yellow(
-        from || "?"
-      )} to version ${colors.cyan(to)}...`,
+      message: `Upgrading ${colors.cyan(name)} from ${
+        colors.yellow(
+          from || "?",
+        )
+      } to version ${colors.cyan(to)}...`,
       color: "cyan",
       spinner: [
         "▰▱▱▱▱▱▱",
@@ -312,26 +319,31 @@ export class GithubReleasesProvider extends Provider {
       try {
         const assetName = this.osAssetMap[os];
         if (!assetName) {
-          const error = new GHRError("Failed to find asset name for current OS", 3, {
-            os,
-            osAssetMap: this.osAssetMap,
-          });
+          const error = new GHRError(
+            "Failed to find asset name for current OS",
+            3,
+            {
+              os,
+              osAssetMap: this.osAssetMap,
+            },
+          );
           this.onError?.(error);
           throw error;
         }
-        const url = `https://github.com/${this.owner}/${this.repo}/releases/download/${to}/${assetName}`;
+        const url =
+          `https://github.com/${this.owner}/${this.repo}/releases/download/${to}/${assetName}`;
         response = await fetch(url);
         errorDetail = {
           url,
         };
-        if(response.status !== 200){
+        if (response.status !== 200) {
           throw new GHRError(
             "Failed to fetch GitHub Release Asset",
             parseInt(`5${response.status}`),
             {
               ...errorDetail,
               status: response.status,
-            }
+            },
           );
         }
       } catch (caught) {
@@ -341,7 +353,7 @@ export class GithubReleasesProvider extends Provider {
           {
             ...errorDetail,
             caught,
-          }
+          },
         );
         this.onError?.(error);
         throw error;
@@ -359,15 +371,15 @@ export class GithubReleasesProvider extends Provider {
           {
             ...req,
             caught: errorFetching,
-          }
+          },
         );
         this.onError?.(error);
         throw error;
       }
 
-      const { path: assetReqPath, opt: assetReqOpt } =
-        this.getOctokitAssetRequest(
-          releaseResponse as ReleaseResponse // if (releaseResponse.status === 200), this is safe
+      const { path: assetReqPath, opt: assetReqOpt } = this
+        .getOctokitAssetRequest(
+          releaseResponse as ReleaseResponse, // if (releaseResponse.status === 200), this is safe
         );
 
       let octokitAssetResponse; // Asset Data
@@ -399,7 +411,7 @@ export class GithubReleasesProvider extends Provider {
           {
             ...errorDetail,
             caught: errorFetching,
-          }
+          },
         );
         this.onError?.(error);
         throw error;
@@ -412,9 +424,13 @@ export class GithubReleasesProvider extends Provider {
         doUntar: true,
       });
     } catch (caught) {
-      const error = new GHRError(`Failed to extract '${this.osAssetMap[os]}' archive`, 8, {
-        caught,
-      });
+      const error = new GHRError(
+        `Failed to extract '${this.osAssetMap[os]}' archive`,
+        8,
+        {
+          caught,
+        },
+      );
       this.onError?.(error);
       throw error;
     }
@@ -458,15 +474,18 @@ export class GithubReleasesProvider extends Provider {
       spinner.stop();
       const fromMsg = from ? ` from version ${colors.yellow(from)}` : "";
       console.log(
-        `Successfully upgraded ${colors.cyan(
-          name
-        )}${fromMsg} to version ${colors.green(to)}!\n`
+        `Successfully upgraded ${
+          colors.cyan(
+            name,
+          )
+        }${fromMsg} to version ${colors.green(to)}!\n`,
       );
     });
   }
 
   async getVersions(_name: string): Promise<GithubReleaseVersions> {
-    const url = `https://api.github.com/repos/${this.owner}/${this.repo}/releases`;
+    const url =
+      `https://api.github.com/repos/${this.owner}/${this.repo}/releases`;
     let listReleasesResponse;
     try {
       listReleasesResponse = await this.octokit.request(
@@ -477,18 +496,19 @@ export class GithubReleasesProvider extends Provider {
           headers: {
             "X-GitHub-Api-Version": "2022-11-28",
           },
-        }
+        },
       );
     } catch (error) {
       const status = error.status;
 
-      const getVersionsError = new GHRError("Failed to octokit.request Release List from GitHub.",
+      const getVersionsError = new GHRError(
+        "Failed to octokit.request Release List from GitHub.",
         parseInt(`7${status}`),
         {
           status,
           caught: error,
           url,
-        }
+        },
       );
       this.onError?.(getVersionsError);
       throw getVersionsError;
@@ -519,7 +539,7 @@ export class GithubReleasesProvider extends Provider {
 
   async listVersions(
     name: string,
-    currentVersion?: string | undefined
+    currentVersion?: string | undefined,
   ): Promise<void> {
     const { versions } = await this.getVersions(name);
     super.printVersions(versions, currentVersion, { indent: 0 });
@@ -546,7 +566,7 @@ export class GithubReleasesUpgradeCommand extends UpgradeCommand {
       () => {
         // this is strange, but seems to work
         options.provider.prerelease = true;
-      }
+      },
     );
   }
 }
