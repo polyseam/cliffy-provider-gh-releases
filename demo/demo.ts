@@ -2,7 +2,7 @@ import { join } from "jsr:@std/path@0.222.1";
 import { colors } from "jsr:@cliffy/ansi@1.0.0-rc.4";
 import { Command } from "jsr:@cliffy/command@1.0.0-rc.4";
 import {
-  GHRError,
+  type GHRError,
   GithubReleasesProvider,
   GithubReleasesUpgradeCommand,
 } from "../mod.ts";
