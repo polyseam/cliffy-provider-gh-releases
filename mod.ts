@@ -30,6 +30,11 @@ type ReleaseParameters =
 type AssetParameters =
   OctokitEndpoints["GET /repos/{owner}/{repo}/releases/assets/{asset_id}"]["parameters"];
 
+
+/**
+ * ERROR_CODE_MAP
+ * A map of error codes to human-readable error messages
+ ***/
 export const ERROR_CODE_MAP = {
   1: "repository must be in the format 'owner/repo'",
   2: "Found old version but failed to delete",
@@ -76,6 +81,7 @@ interface GithubReleasesProviderOptions extends GithubProviderOptions {
   untar?: boolean;
   cleanupOld?: boolean;
   osAssetMap: OSAssetMap;
+  skipAuth?: boolean;
   onComplete?: (
     metadata: OnCompleteMetadata,
     cb: OnCompleteFinalCallback
@@ -106,6 +112,7 @@ function latestSemVerFirst(a: string, b: string): number {
  * - repository: A string in the format 'owner/repo'
  * - destinationDir: A string representing the directory where the release will be installed
  * - osAssetMap: An object mapping OS names to corresponding assets in GitHub Releases
+ * - skipAuth: An optional boolean to skip authentication (not recommended)
  * - onError: An optional callback function to handle errors
  * - onComplete: An optional callback function to handle completion
  */
@@ -119,6 +126,7 @@ export class GithubReleasesProvider extends Provider {
   repo: string;
   osAssetMap: OSAssetMap;
   cleanupOld: boolean = true;
+  skipAuth: boolean = false;
   onComplete?: (
     metadata: OnCompleteMetadata,
     cb: OnCompleteFinalCallback
@@ -157,7 +165,11 @@ export class GithubReleasesProvider extends Provider {
       this.prerelease = true;
     }
 
-    const auth = Deno.env.get("GITHUB_TOKEN") ?? Deno.env.get("GH_TOKEN");
+    this.skipAuth = !!options.skipAuth;
+
+    const auth = this.skipAuth
+      ? undefined
+      : Deno.env.get("GITHUB_TOKEN") ?? Deno.env.get("GH_TOKEN");
 
     this.octokit = new Octokit({ auth });
 
@@ -250,7 +262,7 @@ export class GithubReleasesProvider extends Provider {
   // Add your custom code here
   async upgrade(options: UpgradeOptions): Promise<void> {
     let { name, from, to } = options;
-
+    const os = Deno.build.os;
     const spinner = new Spinner({
       message: `Upgrading ${colors.cyan(name)} from ${colors.yellow(
         from || "?"
@@ -279,73 +291,92 @@ export class GithubReleasesProvider extends Provider {
       to = versions.latest;
     }
 
-    const req = this.getReleaseOctokitRequest(to);
-
-    const releaseResponse = await this.octokit.request(req.path, req.opt);
-
-    if (releaseResponse.status !== 200) {
-      const error = new GHRError("Failed to fetch release metadata", 4, {
-        status: releaseResponse.status,
-        url: releaseResponse.url,
-      });
-      this.onError?.(error);
-      throw error;
-    }
-
-    const { path: assetReqPath, opt: assetReqOpt } =
-      this.getOctokitAssetRequest(
-        releaseResponse as ReleaseResponse // if (releaseResponse.status === 200), this is safe
-      );
-
-    const os = Deno.build.os;
-
-    const stagingDir = Deno.makeTempDirSync();
-
-    let octokitAssetResponse; // Asset Data
-
     let response; // Wraps the Asset Data for inflate_response
+    const stagingDir = Deno.makeTempDirSync();
+    let errorDetail = {};
 
-    try {
-      octokitAssetResponse = await this.octokit.request(assetReqPath, {
-        ...assetReqOpt,
-        headers: {
-          Accept: "application/octet-stream",
-        },
-        request: {
-          responseType: "arraybuffer",
-        },
-      });
+    if (this.skipAuth) {
+      const assetName = this.osAssetMap[os];
+      if (!assetName) {
+        const error = new GHRError("Failed to find asset for current OS", 3, {
+          os,
+          osAssetMap: this.osAssetMap,
+        });
+        this.onError?.(error);
+        throw error;
+      }
+      const url = `https://github.com/${this.owner}/${this.repo}/releases/download/${to}/${assetName}`;
+      response = await fetch(url);
+      errorDetail = {
+        url,
+      };
+    } else {
+      const req = this.getReleaseOctokitRequest(to);
 
-      if (octokitAssetResponse.status !== 200) {
+      const releaseResponse = await this.octokit.request(req.path, req.opt);
+
+      if (releaseResponse.status !== 200) {
+        const error = new GHRError("Failed to fetch release metadata", 4, {
+          status: releaseResponse.status,
+          url: releaseResponse.url,
+        });
+        this.onError?.(error);
+        throw error;
+      }
+
+      const { path: assetReqPath, opt: assetReqOpt } =
+        this.getOctokitAssetRequest(
+          releaseResponse as ReleaseResponse // if (releaseResponse.status === 200), this is safe
+        );
+
+      let octokitAssetResponse; // Asset Data
+
+      errorDetail = {
+        assetReqPath,
+        assetReqOpt,
+      };
+
+      try {
+        octokitAssetResponse = await this.octokit.request(assetReqPath, {
+          ...assetReqOpt,
+          headers: {
+            Accept: "application/octet-stream",
+          },
+          request: {
+            responseType: "arraybuffer",
+          },
+        });
+
+        if (octokitAssetResponse.status !== 200) {
+          const error = new GHRError(
+            "Failed to fetch GitHub Release Asset Data",
+            4,
+            {
+              assetReqPath,
+              assetReqOpt,
+              status: octokitAssetResponse.status,
+            }
+          );
+          this.onError?.(error);
+          throw error;
+        }
+
+        // how costly is creating a Response?
+        response = new Response(octokitAssetResponse.data, {
+          status: octokitAssetResponse.status,
+        });
+      } catch (errorFetching) {
         const error = new GHRError(
-          "Failed to fetch GitHub Release Asset Data",
+          "Network Error: Failed to fetch GitHub Release Asset",
           4,
           {
-            assetReqPath,
-            assetReqOpt,
-            status: octokitAssetResponse.status,
+            ...errorDetail,
+            caught: errorFetching,
           }
         );
         this.onError?.(error);
         throw error;
       }
-
-      // how costly is creating a Response?
-      response = new Response(octokitAssetResponse.data, {
-        status: octokitAssetResponse.status,
-      });
-    } catch (errorFetching) {
-      const error = new GHRError(
-        "Network Error: Failed to fetch GitHub Release Asset",
-        4,
-        {
-          caught: errorFetching,
-          assetReqPath,
-          assetReqOpt,
-        }
-      );
-      this.onError?.(error);
-      throw error;
     }
 
     if (response.body && response.status === 200) {
@@ -409,8 +440,7 @@ export class GithubReleasesProvider extends Provider {
     } else {
       if (response.status === 404) {
         const error = new GHRError("GitHub Release Asset Not Found", 1404, {
-          assetReqOpt,
-          assetReqPath,
+          ...errorDetail,
           status: response.status,
         });
         this.onError?.(error);
@@ -422,8 +452,7 @@ export class GithubReleasesProvider extends Provider {
           "GitHub Release Asset Request Forbidden",
           1403,
           {
-            assetReqOpt,
-            assetReqPath,
+            ...errorDetail,
             status: response.status,
           }
         );
@@ -435,8 +464,7 @@ export class GithubReleasesProvider extends Provider {
         "GitHub Release Asset Request Failed",
         parseInt(`1${response.status}`),
         {
-          assetReqOpt,
-          assetReqPath,
+          ...errorDetail,
           status: response.status,
         }
       );
