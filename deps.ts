@@ -5,7 +5,8 @@ export type {
   GithubVersions,
   UpgradeOptions,
 } from "@cliffy/command/upgrade";
-export { colors } from "@cliffy/ansi";
+
+export { colors } from "@cliffy/ansi/colors";
 
 // node builtins
 export { homedir } from "node:os";
