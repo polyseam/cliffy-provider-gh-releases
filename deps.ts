@@ -1,13 +1,17 @@
 // cliffy
 export { Provider, UpgradeCommand } from "@cliffy/command/upgrade";
-export type {
-  GithubProviderOptions,
-  GithubVersions,
-  UpgradeOptions,
-} from "@cliffy/command/upgrade";
-
+export type { GithubProviderOptions } from "@cliffy/command/upgrade/provider/github";
+export type { UpgradeCommandOptions } from "@cliffy/command/upgrade";
 export { colors } from "@cliffy/ansi/colors";
-
+export interface ProviderUpgradeOptions {
+  name: string;
+  to: string;
+  main?: string;
+  args?: Array<string>;
+  from?: string;
+  force?: boolean;
+  verbose?: boolean;
+}
 // node builtins
 export { homedir } from "node:os";
 

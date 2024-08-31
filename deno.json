@@ -1,6 +1,6 @@
 {
   "name": "@polyseam/cliffy-provider-gh-releases",
-  "version": "0.3.2",
+  "version": "1.0.0-rc.5",
   "tasks": {
     "demo": "deno run -A ./demo/demo.ts",
     "test": "deno test -A"
@@ -12,7 +12,7 @@
   ],
   "imports": {
     "@cliffy/ansi": "jsr:@cliffy/ansi@^1.0.0-rc.5",
-    "@cliffy/command": "jsr:@cliffy/command@1.0.0-rc.4",
+    "@cliffy/command": "jsr:@cliffy/command@^1.0.0-rc.5",
     "@octokit/types": "npm:@octokit/types@^13.4.1",
     "@polyseam/inflate-response": "jsr:@polyseam/inflate-response@^1.1.2",
     "@std/cli": "jsr:@std/cli@^0.221.0",

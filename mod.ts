@@ -13,7 +13,11 @@ import {
 
 import type { OctokitEndpoints } from "./deps.ts";
 
-import type { GithubProviderOptions, UpgradeOptions } from "./deps.ts";
+import type {
+  GithubProviderOptions,
+  ProviderUpgradeOptions,
+  UpgradeCommandOptions,
+} from "./deps.ts";
 
 const OLD_VERSION_TAG = ".GHR_OLD.";
 
@@ -83,6 +87,9 @@ type OnCompleteMetadata = {
 };
 
 type OnCompleteFinalCallback = () => void;
+
+interface GithubReleasesProviderUpgradeOptions extends ProviderUpgradeOptions {
+}
 
 interface GithubReleasesProviderOptions extends GithubProviderOptions {
   destinationDir: string;
@@ -278,7 +285,7 @@ export class GithubReleasesProvider extends Provider {
   }
 
   // Add your custom code here
-  async upgrade(options: UpgradeOptions): Promise<void> {
+  async upgrade(options: GithubReleasesProviderUpgradeOptions): Promise<void> {
     let { name, from, to } = options;
     const os = Deno.build.os;
     const spinner = new Spinner({
@@ -557,7 +564,7 @@ interface GithubReleasesUpgradeOptions {
  * - provider: A GithubReleasesProvider instance
  */
 export class GithubReleasesUpgradeCommand extends UpgradeCommand {
-  constructor(options: GithubReleasesUpgradeOptions) {
+  constructor(options: UpgradeCommandOptions<GithubReleasesProvider>) {
     super(options);
 
     this.option(
@@ -565,7 +572,15 @@ export class GithubReleasesUpgradeCommand extends UpgradeCommand {
       "Include GitHub Releases marked pre-release",
       () => {
         // this is strange, but seems to work
-        options.provider.prerelease = true;
+        if (Array.isArray(options.provider)) {
+          options.provider.forEach((provider) => {
+            if (provider.name === "GithubReleaseProvider") {
+              provider.prerelease = true;
+            }
+          });
+        } else if (options.provider.name === "GithubReleaseProvider") {
+          options.provider.prerelease = true;
+        }
       },
     );
   }
