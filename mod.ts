@@ -13,21 +13,7 @@ import {
 
 import type { OctokitEndpoints } from "./deps.ts";
 
-import type {
-  GithubProviderOptions,
-  ProviderUpgradeOptions,
-  UpgradeCommandOptions,
-} from "./deps.ts";
-
-interface UpgradeCommandOptionsWithLogger
-  extends UpgradeCommandOptions<GithubReleasesProvider> {
-  logger: {
-    info: (...args: unknown[]) => void;
-    error: (...args: unknown[]) => void;
-    log: (...args: unknown[]) => void;
-    warn: (...args: unknown[]) => void;
-  };
-}
+import type { GithubProviderOptions, ProviderUpgradeOptions } from "./deps.ts";
 
 const OLD_VERSION_TAG = ".GHR_OLD.";
 
@@ -591,11 +577,9 @@ const mutedLogger = {
  * - provider: A GithubReleasesProvider instance
  */
 export class GithubReleasesUpgradeCommand extends UpgradeCommand {
-  constructor(options: UpgradeCommandOptionsWithLogger) {
-    super({
-      ...options,
-      logger: mutedLogger,
-    } as UpgradeCommandOptionsWithLogger);
+  constructor(options: GithubReleasesUpgradeOptions) {
+    const opt = { ...options, logger: mutedLogger };
+    super(opt);
 
     // assumes only one provider is passed into command constructor
     const provider: GithubReleasesProvider = Array.isArray(options.provider)
