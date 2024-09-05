@@ -1,6 +1,6 @@
 {
   "name": "@polyseam/cliffy-provider-gh-releases",
-  "version": "1.0.0-rc.6",
+  "version": "1.0.0-rc.7",
   "tasks": {
     "demo": "deno run -A ./demo/demo.ts",
     "test": "deno test -A"
