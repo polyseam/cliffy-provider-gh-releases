@@ -592,9 +592,6 @@ const mutedLogger = {
  */
 export class GithubReleasesUpgradeCommand extends UpgradeCommand {
   constructor(options: UpgradeCommandOptionsWithLogger) {
-    // TODO: this is egregious, but it's the only way to disable the spinner
-    Deno.args.push("--no-spinner");
-
     super({
       ...options,
       logger: mutedLogger,
