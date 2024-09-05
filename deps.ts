@@ -18,8 +18,7 @@ export { homedir } from "node:os";
 // std
 export { Spinner } from "@std/cli/spinner";
 export { type SpinnerOptions } from "@std/cli/spinner";
-import { compare } from "@std/semver/compare";
-import { tryParse } from "@std/semver";
+import { compare, tryParse } from "@std/semver";
 export const semver = {
   compare,
   tryParse,

@@ -19,6 +19,16 @@ import type {
   UpgradeCommandOptions,
 } from "./deps.ts";
 
+interface UpgradeCommandOptionsWithLogger
+  extends UpgradeCommandOptions<GithubReleasesProvider> {
+  logger: {
+    info: (...args: unknown[]) => void;
+    error: (...args: unknown[]) => void;
+    log: (...args: unknown[]) => void;
+    warn: (...args: unknown[]) => void;
+  };
+}
+
 const OLD_VERSION_TAG = ".GHR_OLD.";
 
 type AvailableOS = typeof Deno.build.os;
@@ -99,6 +109,7 @@ interface GithubReleasesProviderOptions extends GithubProviderOptions {
   cleanupOld?: boolean;
   osAssetMap: OSAssetMap;
   skipAuth?: boolean;
+  repository: string;
   onComplete?: (
     metadata: OnCompleteMetadata,
     cb: OnCompleteFinalCallback,
@@ -144,6 +155,7 @@ export class GithubReleasesProvider extends Provider {
   osAssetMap: OSAssetMap;
   cleanupOld: boolean = true;
   skipAuth: boolean = false;
+
   onComplete?: (
     metadata: OnCompleteMetadata,
     cb: OnCompleteFinalCallback,
@@ -557,6 +569,21 @@ interface GithubReleasesUpgradeOptions {
   provider: GithubReleasesProvider;
 }
 
+interface UpgradeActionOptions {
+  force: boolean;
+  verbose: boolean;
+  version: string;
+  to: string;
+  from?: string;
+}
+
+const mutedLogger = {
+  info: () => {},
+  error: () => {},
+  log: () => {},
+  warn: () => {},
+};
+
 /**
  * GithubReleasesUpgradeCommand
  * A Cliffy UpgradeCommand for upgrading software using GitHub Releases
@@ -564,22 +591,26 @@ interface GithubReleasesUpgradeOptions {
  * - provider: A GithubReleasesProvider instance
  */
 export class GithubReleasesUpgradeCommand extends UpgradeCommand {
-  constructor(options: UpgradeCommandOptions<GithubReleasesProvider>) {
-    super(options);
+  constructor(options: UpgradeCommandOptionsWithLogger) {
+    // TODO: this is egregious, but it's the only way to disable the spinner
+    Deno.args.push("--no-spinner");
+
+    super({
+      ...options,
+      logger: mutedLogger,
+    } as UpgradeCommandOptionsWithLogger);
+
+    // assumes only one provider is passed into command constructor
+    const provider: GithubReleasesProvider = Array.isArray(options.provider)
+      ? options.provider[0]
+      : options.provider;
 
     this.option(
       "--pre-release, --prerelease",
       "Include GitHub Releases marked pre-release",
       () => {
-        // this is strange, but seems to work
-        if (Array.isArray(options.provider)) {
-          options.provider.forEach((provider) => {
-            if (provider.name === "GithubReleaseProvider") {
-              provider.prerelease = true;
-            }
-          });
-        } else if (options.provider.name === "GithubReleaseProvider") {
-          options.provider.prerelease = true;
+        if (provider instanceof GithubReleasesProvider) {
+          provider.prerelease = true;
         }
       },
     );
