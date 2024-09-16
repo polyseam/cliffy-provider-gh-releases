@@ -586,6 +586,10 @@ export class GithubReleasesUpgradeCommand extends UpgradeCommand {
       ? options.provider[0]
       : options.provider;
 
+    this.option("--spinner", "disable the builtin cliffy spinner", {
+      override: true,
+    });
+
     this.option(
       "--pre-release, --prerelease",
       "Include GitHub Releases marked pre-release",
