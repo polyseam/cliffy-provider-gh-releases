@@ -283,6 +283,7 @@ export class GithubReleasesProvider extends Provider {
   }
 
   // Add your custom code here
+  //@ts-ignore - hotfix!
   async upgrade(options: GithubReleasesProviderUpgradeOptions): Promise<void> {
     let { name, from, to } = options;
     const os = Deno.build.os;
@@ -372,6 +373,7 @@ export class GithubReleasesProvider extends Provider {
       } catch (errorFetching) {
         const error = new GHRError(
           "Failed to fetch Release metadata",
+          // @ts-ignore - hotfix!
           parseInt(`5${errorFetching.status}`),
           {
             ...req,
@@ -412,6 +414,7 @@ export class GithubReleasesProvider extends Provider {
       } catch (errorFetching) {
         const error = new GHRError(
           "Failed to fetch GitHub Release Asset Data",
+          //@ts-ignore - hotfix!
           parseInt(`6${errorFetching.status}`),
           {
             ...errorDetail,
@@ -504,8 +507,8 @@ export class GithubReleasesProvider extends Provider {
         },
       );
     } catch (error) {
+      //@ts-ignore - hotfix!
       const status = error.status;
-
       const getVersionsError = new GHRError(
         "Failed to octokit.request Release List from GitHub.",
         parseInt(`7${status}`),
@@ -542,6 +545,7 @@ export class GithubReleasesProvider extends Provider {
     };
   }
 
+  //@ts-ignore hotfix!
   async listVersions(
     name: string,
     currentVersion?: string | undefined,
@@ -585,10 +589,6 @@ export class GithubReleasesUpgradeCommand extends UpgradeCommand {
     const provider: GithubReleasesProvider = Array.isArray(options.provider)
       ? options.provider[0]
       : options.provider;
-
-    this.option("--spinner", "disable the builtin cliffy spinner", {
-      override: true,
-    });
 
     this.option(
       "--pre-release, --prerelease",
