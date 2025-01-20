@@ -17,10 +17,13 @@ import type { GithubProviderOptions, ProviderUpgradeOptions } from "./deps.ts";
 
 const OLD_VERSION_TAG = ".GHR_OLD.";
 
-type AvailableOS = typeof Deno.build.os;
-
-type OSAssetMap = {
-  [K in AvailableOS]?: string;
+type CompilationTargetAssetMap = {
+  "darwin-x86_64": string;
+  "darwin-aarch64": string;
+  "linux-x86_64": string;
+  "linux-aarch64": string;
+  "windows-x86_64": string;
+  // 'windows-aaarch64': string; theoretically possible, but not supported by deno compile
 };
 
 type ReleaseResponse =
@@ -93,7 +96,7 @@ interface GithubReleasesProviderOptions extends GithubProviderOptions {
   prerelease?: boolean;
   untar?: boolean;
   cleanupOld?: boolean;
-  osAssetMap: OSAssetMap;
+  targetAssetMap: CompilationTargetAssetMap;
   skipAuth?: boolean;
   repository: string;
   onComplete?: (
@@ -125,7 +128,7 @@ function latestSemVerFirst(a: string, b: string): number {
  * @param options - An object containing the following properties:
  * - repository: A string in the format 'owner/repo'
  * - destinationDir: A string representing the directory where the release will be installed
- * - osAssetMap: An object mapping OS names to corresponding assets in GitHub Releases
+ * - targetAssetMap: An object mapping compilation targets to corresponding assets in GitHub Releases
  * - skipAuth: An optional boolean to skip authentication (not recommended)
  * - onError: An optional callback function to handle errors
  * - onComplete: An optional callback function to handle completion
@@ -138,7 +141,7 @@ export class GithubReleasesProvider extends Provider {
   octokit: Octokit;
   owner: string;
   repo: string;
-  osAssetMap: OSAssetMap;
+  targetAssetMap: CompilationTargetAssetMap;
   cleanupOld: boolean = true;
   skipAuth: boolean = false;
 
@@ -170,7 +173,7 @@ export class GithubReleasesProvider extends Provider {
     this.destinationDir = options.destinationDir.replace("~", homedir());
 
     ensureDirSync(this.destinationDir);
-    this.osAssetMap = options.osAssetMap;
+    this.targetAssetMap = options.targetAssetMap;
 
     if (options.displaySpinner === false) {
       this.displaySpinner = false;
@@ -225,6 +228,20 @@ export class GithubReleasesProvider extends Provider {
     }
   }
 
+  getAssetName(): string | null {
+    const os = Deno.build.os;
+    const arch = Deno.build.arch;
+    const key = `${os}-${arch}`;
+    const assetName = this.targetAssetMap
+      ?.[key as keyof CompilationTargetAssetMap];
+
+    if (!assetName) {
+      return null;
+    }
+
+    return assetName;
+  }
+
   getRepositoryUrl(_name: string): string {
     return `https://github.com/${this.owner}/${this.repo}/releases`;
   }
@@ -251,12 +268,13 @@ export class GithubReleasesProvider extends Provider {
     path: string;
     opt: AssetParameters;
   } {
-    const assetName = this.osAssetMap[Deno.build.os];
+    const assetName = this.getAssetName();
 
     if (!assetName) {
       throw new GHRError("Failed to find asset name for current OS", 3, {
         os: Deno.build.os,
-        osAssetMap: this.osAssetMap,
+        arch: Deno.build.arch,
+        targetAssetMap: this.targetAssetMap,
       });
     }
 
@@ -286,7 +304,7 @@ export class GithubReleasesProvider extends Provider {
   //@ts-ignore - hotfix!
   async upgrade(options: GithubReleasesProviderUpgradeOptions): Promise<void> {
     let { name, from, to } = options;
-    const os = Deno.build.os;
+    const { os, arch } = Deno.build;
     const spinner = new Spinner({
       message: `Upgrading ${colors.cyan(name)} from ${
         colors.yellow(
@@ -323,14 +341,15 @@ export class GithubReleasesProvider extends Provider {
 
     if (this.skipAuth) {
       try {
-        const assetName = this.osAssetMap[os];
+        const assetName = this.getAssetName();
         if (!assetName) {
           const error = new GHRError(
             "Failed to find asset name for current OS",
             3,
             {
               os,
-              osAssetMap: this.osAssetMap,
+              arch,
+              targetAssetMap: this.targetAssetMap,
             },
           );
           this.onError?.(error);
@@ -432,8 +451,24 @@ export class GithubReleasesProvider extends Provider {
         doUntar: true,
       });
     } catch (caught) {
+      const assetName = this.getAssetName();
+
+      if (!assetName) {
+        const error = new GHRError(
+          `Failed to find asset for compilation target`,
+          3,
+          {
+            os,
+            arch,
+            targetAssetMap: this.targetAssetMap,
+          },
+        );
+        this.onError?.(error);
+        throw error;
+      }
+
       const error = new GHRError(
-        `Failed to extract '${this.osAssetMap[os]}' archive`,
+        `Failed to extract '${assetName}' archive`,
         8,
         {
           caught,
