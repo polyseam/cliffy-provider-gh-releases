@@ -558,7 +558,7 @@ export class GithubReleasesProvider extends Provider {
     }
 
     const versions = listReleasesResponse.data
-      .filter((release) => {
+      .filter((release: { draft: boolean; prerelease: boolean }) => {
         // never include draft releases
         if (release.draft) return false;
         // only include prereleases if the prerelease option is set to true
@@ -569,7 +569,7 @@ export class GithubReleasesProvider extends Provider {
         }
         return true;
       })
-      .map(({ tag_name }) => tag_name)
+      .map(({ tag_name }: { tag_name: string }) => tag_name)
       .sort(latestSemVerFirst);
 
     const latest = versions[0];
