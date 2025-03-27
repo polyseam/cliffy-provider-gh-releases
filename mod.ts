@@ -70,14 +70,26 @@ export const ERROR_CODE_MAP = {
  * @param code - A numeric error code
  * @param metadata - An optional object containing additional error information
  */
+
+export type GHRErrorOptions = {
+  code: number;
+  metadata: Record<string, unknown>;
+};
+
 export class GHRError extends Error {
   code: number;
   metadata: Record<string, unknown>;
-  constructor(message: string, code: number, metadata = {}) {
+  constructor(message: string, options: GHRErrorOptions) {
     super(message);
-    this.code = code;
+    const { code, metadata } = options;
+    this.code = parseInt(`${this.errorCodePrefix}${code}`);
     this.metadata = metadata;
   }
+}
+
+// this is the trick to make GHRError.prototype.errorCodePrefix "type safe"
+export interface GHRError {
+  errorCodePrefix: string;
 }
 
 type OnCompleteMetadata = {
@@ -98,12 +110,13 @@ interface GithubReleasesProviderOptions extends GithubProviderOptions {
   cleanupOld?: boolean;
   targetAssetMap: CompilationTargetAssetMap;
   skipAuth?: boolean;
+  errorExitCodePrefix?: string; // all upgrade errors can use the same common prefix for bad exits
   repository: string;
   onComplete?: (
     metadata: OnCompleteMetadata,
     cb: OnCompleteFinalCallback,
   ) => void | never;
-  onError?: (error: GHRError) => void | never;
+  onError: (error: GHRError) => Promise<never>;
 }
 
 type GithubReleaseVersions = {
@@ -145,27 +158,43 @@ export class GithubReleasesProvider extends Provider {
   cleanupOld: boolean = true;
   skipAuth: boolean = false;
 
-  onComplete?: (
+  onComplete: (
     metadata: OnCompleteMetadata,
     cb: OnCompleteFinalCallback,
-  ) => void | never;
-  onError?: (error: GHRError) => void | never;
+  ) => void;
+
+  onError: (error: GHRError) => Promise<never>;
 
   constructor(options: GithubReleasesProviderOptions) {
     super();
+
+    // set the error code prefix once at the class level
+    GHRError.prototype.errorCodePrefix = options.errorExitCodePrefix || "";
+
+    this.onComplete = options?.onComplete ||
+      ((_meta: OnCompleteMetadata, _cb: OnCompleteFinalCallback) => {});
+
+    this.onError = options?.onError || ((e: GHRError) => {
+      Deno.exit(e.code);
+    });
 
     const [owner, repo] = options.repository.split("/");
 
     if (!owner || !repo) {
       const error = new GHRError(
         "repository must be in the format 'owner/repo'",
-        1,
         {
-          repository: options.repository,
+          code: 1,
+          metadata: {
+            repository: options.repository,
+          },
         },
       );
-      this.onError?.(error);
-      throw error;
+
+      this.onError(error);
+
+      // required because onError() is async and async functions can't be called in the constructor
+      Deno?.exit(error.code);
     }
 
     this.owner = owner;
@@ -199,13 +228,11 @@ export class GithubReleasesProvider extends Provider {
       // triggering this in the provider constructor is somewhat gross
       // however it's the only way to ensure that the cleanup happens
       this.cleanOldVersions();
+      // the fact that it is async but called without await in the constructor is a bit sketchy
     }
-    this.onComplete = options?.onComplete ||
-      ((_meta: OnCompleteMetadata, _cb: OnCompleteFinalCallback) => {});
-    this.onError = options?.onError || ((_error: Error) => {});
   }
 
-  cleanOldVersions() {
+  async cleanOldVersions() {
     for (const entry of walkSync(this.destinationDir)) {
       if (entry.path.includes(OLD_VERSION_TAG)) {
         try {
@@ -214,13 +241,15 @@ export class GithubReleasesProvider extends Provider {
           if (!(caught instanceof Deno.errors.NotFound)) {
             const foundButFailedToDelete = new GHRError(
               "Found old version but failed to delete",
-              2,
               {
-                oldfile: entry.path,
-                caught,
+                metadata: {
+                  oldfile: entry.path,
+                  caught,
+                },
+                code: 2,
               },
             );
-            this.onError?.(foundButFailedToDelete);
+            await this.onError(foundButFailedToDelete);
             throw foundButFailedToDelete;
           }
         }
@@ -264,29 +293,42 @@ export class GithubReleasesProvider extends Provider {
     };
   }
 
-  getOctokitAssetRequest(releaseResponse: ReleaseResponse): {
+  async getOctokitAssetRequest(releaseResponse: ReleaseResponse): Promise<{
     path: string;
     opt: AssetParameters;
-  } {
+  }> {
     const assetName = this.getAssetName();
 
     if (!assetName) {
-      throw new GHRError("Failed to find asset name for current OS", 3, {
-        os: Deno.build.os,
-        arch: Deno.build.arch,
-        targetAssetMap: this.targetAssetMap,
-      });
+      const error = new GHRError(
+        "Failed to find asset name for current OS",
+        {
+          code: 3,
+          metadata: {
+            os: Deno.build.os,
+            arch: Deno.build.arch,
+            targetAssetMap: this.targetAssetMap,
+          },
+        },
+      );
+      await this.onError(error);
+      throw error;
     }
 
     const asset = releaseResponse.data.assets.find(
       (asset: { name: string }) => asset.name === assetName,
     );
     if (!asset) {
-      throw new GHRError("Failed to find asset for current OS", 4, {
-        os: Deno.build.os,
-        assetName,
-        assets: releaseResponse.data.assets,
+      const e = new GHRError("Failed to find asset for current OS", {
+        code: 4,
+        metadata: {
+          os: Deno.build.os,
+          assetName,
+          assets: releaseResponse.data.assets,
+        },
       });
+      await this.onError(e);
+      throw e;
     }
     const assetId = asset.id;
 
@@ -345,14 +387,16 @@ export class GithubReleasesProvider extends Provider {
         if (!assetName) {
           const error = new GHRError(
             "Failed to find asset name for current OS",
-            3,
             {
-              os,
-              arch,
-              targetAssetMap: this.targetAssetMap,
+              code: 3,
+              metadata: {
+                os,
+                arch,
+                targetAssetMap: this.targetAssetMap,
+              },
             },
           );
-          this.onError?.(error);
+          this.onError(error);
           throw error;
         }
         const url =
@@ -362,25 +406,31 @@ export class GithubReleasesProvider extends Provider {
           url,
         };
         if (response.status !== 200) {
-          throw new GHRError(
+          const error = new GHRError(
             "Failed to fetch GitHub Release Asset",
-            parseInt(`5${response.status}`),
             {
-              ...errorDetail,
-              status: response.status,
+              code: parseInt(`5${response.status}`),
+              metadata: {
+                ...errorDetail,
+                status: response.status,
+              },
             },
           );
+          await this.onError(error);
+          throw error;
         }
       } catch (caught) {
         const error = new GHRError(
           "Network Error: Failed to fetch GitHub Release Asset",
-          5,
           {
-            ...errorDetail,
-            caught,
+            code: 5,
+            metadata: {
+              ...errorDetail,
+              caught,
+            },
           },
         );
-        this.onError?.(error);
+        await this.onError(error);
         throw error;
       }
     } else {
@@ -389,21 +439,24 @@ export class GithubReleasesProvider extends Provider {
       let releaseResponse; // Release Metadata
       try {
         releaseResponse = await this.octokit.request(req.path, req.opt);
-      } catch (errorFetching) {
+      } catch (octokitError) {
+        const caught = octokitError as { status: number };
         const error = new GHRError(
           "Failed to fetch Release metadata",
           // @ts-ignore - hotfix!
-          parseInt(`5${errorFetching.status}`),
           {
-            ...req,
-            caught: errorFetching,
+            code: parseInt(`5${caught.status || ""}`),
+            metadata: {
+              ...req,
+              caught: octokitError,
+            },
           },
         );
-        this.onError?.(error);
+        await this.onError(error);
         throw error;
       }
 
-      const { path: assetReqPath, opt: assetReqOpt } = this
+      const { path: assetReqPath, opt: assetReqOpt } = await this
         .getOctokitAssetRequest(
           releaseResponse as ReleaseResponse, // if (releaseResponse.status === 200), this is safe
         );
@@ -430,17 +483,19 @@ export class GithubReleasesProvider extends Provider {
         response = new Response(octokitAssetResponse.data, {
           status: octokitAssetResponse.status,
         });
-      } catch (errorFetching) {
+      } catch (octokitError) {
+        const caught = octokitError as { status: number };
         const error = new GHRError(
           "Failed to fetch GitHub Release Asset Data",
-          //@ts-ignore - hotfix!
-          parseInt(`6${errorFetching.status}`),
           {
-            ...errorDetail,
-            caught: errorFetching,
+            code: parseInt(`6${caught.status}`),
+            metadata: {
+              ...errorDetail,
+              caught,
+            },
           },
         );
-        this.onError?.(error);
+        await this.onError(error);
         throw error;
       }
     }
@@ -456,25 +511,28 @@ export class GithubReleasesProvider extends Provider {
       if (!assetName) {
         const error = new GHRError(
           `Failed to find asset for compilation target`,
-          3,
           {
-            os,
-            arch,
-            targetAssetMap: this.targetAssetMap,
+            code: 3,
+            metadata: {
+              os,
+              arch,
+              targetAssetMap: this.targetAssetMap,
+            },
           },
         );
-        this.onError?.(error);
+        await this.onError(error);
         throw error;
       }
 
       const error = new GHRError(
         `Failed to extract '${assetName}' archive`,
-        8,
         {
-          caught,
+          metadata: { caught },
+          code: 8,
         },
       );
-      this.onError?.(error);
+
+      await this.onError(error);
       throw error;
     }
 
@@ -487,11 +545,14 @@ export class GithubReleasesProvider extends Provider {
           Deno.renameSync(finalPath, `${finalPath}${OLD_VERSION_TAG}`);
         } catch (caught) {
           if (!(caught instanceof Deno.errors.NotFound)) {
-            const error = new GHRError("Failed to stash old version", 9, {
-              caught,
-              oldfile: finalPath,
+            const error = new GHRError("Failed to stash old version", {
+              code: 9,
+              metadata: {
+                caught,
+                oldfile: finalPath,
+              },
             });
-            this.onError?.(error);
+            await this.onError(error);
             throw error;
           }
         }
@@ -500,11 +561,14 @@ export class GithubReleasesProvider extends Provider {
         try {
           Deno.renameSync(entry.path, finalPath);
         } catch (caught) {
-          const error = new GHRError("Failed to install new version", 10, {
-            caught,
-            newfile: entry.path,
+          const error = new GHRError("Failed to install new version", {
+            code: 10,
+            metadata: {
+              caught,
+              newfile: entry.path,
+            },
           });
-          this.onError?.(error);
+          await this.onError(error);
           throw error;
         }
         if (os !== "windows") {
@@ -513,7 +577,7 @@ export class GithubReleasesProvider extends Provider {
       }
     }
 
-    this?.onComplete?.({ to, from }, function printSuccessMessage() {
+    this.onComplete({ to, from }, function printSuccessMessage() {
       spinner.stop();
       const fromMsg = from ? ` from version ${colors.yellow(from)}` : "";
       console.log(
@@ -546,14 +610,16 @@ export class GithubReleasesProvider extends Provider {
       const status = error.status;
       const getVersionsError = new GHRError(
         "Failed to octokit.request Release List from GitHub.",
-        parseInt(`7${status}`),
         {
-          status,
-          caught: error,
-          url,
+          code: parseInt(`7${status}`),
+          metadata: {
+            status,
+            caught: error,
+            url,
+          },
         },
       );
-      this.onError?.(getVersionsError);
+      await this.onError(getVersionsError);
       throw getVersionsError;
     }
 
